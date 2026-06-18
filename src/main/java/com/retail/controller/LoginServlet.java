@@ -25,13 +25,18 @@ public class LoginServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         String action = request.getServletPath();
+
         if ("/logout".equals(action)) {
             HttpSession session = request.getSession(false);
             if (session != null) {
                 session.invalidate();
             }
-            response.sendRedirect("login.jsp");
+            // 💡 绝杀修复：登出后，不要直接去撞不存在的 login.jsp
+            // 而是重定向去你的 /login 控制器路径，让下面的 else 分支安全转发！
+            response.sendRedirect(request.getContextPath() + "/login");
+
         } else {
+            // 💡 顺藤摸瓜：带上你的真实安全视图路径
             request.getRequestDispatcher("/WEB-INF/views/auth/login.jsp").forward(request, response);
         }
     }
@@ -72,7 +77,8 @@ public class LoginServlet extends HttpServlet {
                     response.sendRedirect("products");
                     break;
                 default:
-                    response.sendRedirect("login.jsp?error=Role Not Recognized");
+                    // 💡 这里的角色未识别也同样重定向回 /login 控制器
+                    response.sendRedirect(request.getContextPath() + "/login?error=Role Not Recognized");
             }
         } else {
             request.setAttribute("errorMessage", "Invalid Username or Password");

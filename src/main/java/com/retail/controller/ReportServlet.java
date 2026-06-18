@@ -3,7 +3,6 @@ package com.retail.controller;
 import com.retail.model.bean.SaleItem;
 import com.retail.model.bean.Sale;
 import com.retail.model.dao.ReportDAO;
-import com.retail.model.dao.ProductDAO; // 假设你的低库存DAO在这里，若没有可根据你实际的DAO包名调整
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -11,7 +10,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -50,11 +48,12 @@ public class ReportServlet extends HttpServlet {
         request.setAttribute("selectedStartDate", startDate);
         request.setAttribute("selectedEndDate", endDate);
 
+        // 💡 3. 精准的大括号修复：让分支逻辑重新归位
         if ("printReport".equals(action)) {
             List<SaleItem> detailedSales = reportDAO.getDetailedSalesRows(startDate, endDate);
             request.setAttribute("detailedSales", detailedSales);
 
-            // 💡 绝杀修复 1：把日期死死塞回给 print-report.jsp 页面，让 "Date Range:" 不再空白！
+            // 💡 绝杀修复：把日期死死塞回给 print-report.jsp 页面，让 "Date Range:" 不再空白！
             request.setAttribute("startDate", startDate);
             request.setAttribute("endDate", endDate);
 
@@ -65,14 +64,15 @@ public class ReportServlet extends HttpServlet {
             Map<String, Double> salesData = reportDAO.getSalesSummary(startDate, endDate);
             List<SaleItem> detailedSales = reportDAO.getDetailedSalesRows(startDate, endDate);
             Map<String, Integer> performanceData = reportDAO.getProductPerformance();
-            List<Sale> salesList = reportDAO.getFilteredSalesList(startDate, endDate);
+
+            // 💡 绝杀修复：把流水的查询区间直接拉满到一百年！这样无论前端怎么选，它都雷打不动地展示全量历史（包括已取消）
+            List<Sale> salesList = reportDAO.getFilteredSalesList("2000-01-01", "2099-12-31");
 
             request.setAttribute("salesData", salesData);
             request.setAttribute("detailedSales", detailedSales);
             request.setAttribute("performanceData", performanceData);
-            request.setAttribute("salesList", salesList);
+            request.setAttribute("salesList", salesList); // 👈 完美带走全量无删减历史流水！
 
-            // 顺便把低库存报警数据带过去（根据你实际项目补齐）
             request.getRequestDispatcher("/WEB-INF/views/reports/sales-report.jsp").forward(request, response);
         }
     }

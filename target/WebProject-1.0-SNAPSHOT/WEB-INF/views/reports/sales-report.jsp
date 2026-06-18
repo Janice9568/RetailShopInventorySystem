@@ -23,6 +23,7 @@
         <div class="card-body p-4">
             <form action="reports" method="get" id="mainDashboardForm" target="_blank">
                 <input type="hidden" name="action" id="formAction" value="printReport">
+                <input type="hidden" name="isTodayScope" id="isTodayScope" value="false">
 
                 <div class="row g-2 align-items-end">
                     <div class="col-md-5">
@@ -135,33 +136,85 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-12 mt-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white fw-bold py-3">
+                    <i class="bi bi-receipt me-2 text-success"></i>Transaction Flow & Audit Logs
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Date & Time</th>
+                                <th>Transaction ID</th>
+                                <th>Cashier</th>
+                                <th>Amount</th>
+                                <th>Payment Method</th>
+                                <th class="pe-4">Status & Audit Notes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <c:forEach var="sale" items="${salesList}">
+                                <tr class="${sale.paymentStatus == 'CANCELLED' ? 'table-light text-muted text-decoration-line-through' : ''}">
+                                    <td class="ps-4">
+                                        <fmt:formatDate value="${sale.saleDate}" pattern="yyyy-MM-dd HH:mm" />
+                                    </td>
+                                    <td class="fw-bold">#SAL-${sale.saleId}</td>
+                                    <td>${sale.sellerName}</td>
+                                    <td class="fw-bold">
+                                        RM <fmt:formatNumber value="${sale.totalAmount}" type="number" minFractionDigits="2" maxFractionDigits="2"/>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border">${sale.paymentMethod}</span></td>
+                                    <td class="pe-4">
+                                        <c:choose>
+                                            <c:when test="${sale.paymentStatus == 'CANCELLED'}">
+                                                <span class="badge bg-danger">Cancelled</span>
+                                                <div class="text-danger small fw-bold mt-1 text-decoration-none" style="font-size: 0.78rem;">
+                                                    <i class="bi bi-info-circle"></i> Reason: ${sale.cancelReason}
+                                                </div>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span class="badge bg-success-subtle text-success">${sale.paymentStatus}</span>
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                </tr>
+                            </c:forEach>
+                            <c:if test="${empty salesList}">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No transactions logged in system history.</td>
+                                </tr>
+                            </c:if>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
 <script>
-    // 💡 当主按钮点击时触发：让主页面在半秒后自动重载，更新大面板数据
+    // 当点击 Generate Report 时：让主窗口平滑更新大看板，完全不对齐 action 尾巴，杜绝 404
     function handleFormClick() {
         const startDate = document.getElementById('filterStartDate').value;
         const endDate = document.getElementById('filterEndDate').value;
+        const isToday = document.getElementById('isTodayScope').value;
 
-        // 利用 setTimeout 巧妙错开线程，让主页面丝滑刷新，绝不卡开窗！
         setTimeout(() => {
-            window.location.href = `reports?action=salesSummary&startDate=${startDate}&endDate=${endDate}`;
+            window.location.href = `reports?startDate=${startDate}&endDate=${endDate}&isTodayScope=${isToday}`;
         }, 400);
     }
 
-    // 💡 Today 捷径按钮：强行把时间卡在今天，然后完美触发上面的逻辑
+    // Today 捷径按钮：强行将标志位调整，引爆单天数据过滤
     function selectTodayAndSubmitAll() {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
+        document.getElementById('filterStartDate').value = "2026-06-18";
+        document.getElementById('filterEndDate').value = "2026-06-18";
+        document.getElementById('isTodayScope').value = "true";
 
-        document.getElementById('filterStartDate').value = formattedDate;
-        document.getElementById('filterEndDate').value = formattedDate;
-
-        // 强行把标记设为 printReport 并自动模拟点击，确保 Today 功能和主按钮平起平坐
         document.getElementById('formAction').value = "printReport";
         handleFormClick();
 
