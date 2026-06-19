@@ -64,6 +64,12 @@ public class AuthenticationFilter implements Filter {
         } else {
             res.sendRedirect(req.getContextPath() + "/dashboard?error=Unauthorized");
         }
+
+        // Inside doFilter
+        if (path.equals("/login") || path.equals("/forgot-password") || path.startsWith("/assets/")) {
+            chain.doFilter(request, response);
+            return;
+        }
     }
 
     public void destroy() {}

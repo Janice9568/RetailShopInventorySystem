@@ -14,27 +14,36 @@ public class ProfileServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        // Just forward to the profile page
+        // Accessing the hidden JSP inside WEB-INF
         request.getRequestDispatcher("WEB-INF/views/auth/profile.jsp").forward(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        HttpSession session = request.getSession();
+        // Ensure support for special characters in names
+        request.setCharacterEncoding("UTF-8");
+
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("currentUser") == null) {
+            response.sendRedirect(request.getContextPath() + "/login");
+            return;
+        }
+
         User currentUser = (User) session.getAttribute("currentUser");
 
-        if (currentUser != null) {
-            currentUser.setFullName(request.getParameter("fullName"));
-            currentUser.setPhone(request.getParameter("phone"));
-            currentUser.setEmail(request.getParameter("email"));
+        // Update the bean with new form data
+        currentUser.setFullName(request.getParameter("fullName"));
+        currentUser.setPhone(request.getParameter("phone"));
+        currentUser.setEmail(request.getParameter("email"));
 
-            if (userDAO.updateProfile(currentUser)) {
-                session.setAttribute("currentUser", currentUser); // Refresh session data
-                response.sendRedirect("profile?msg=updated");
-            } else {
-                response.sendRedirect("profile?msg=error");
-            }
+        // Call the missing method in DAO
+        if (userDAO.updateProfile(currentUser)) {
+            // Update the session bean so the header shows the new name immediately
+            session.setAttribute("currentUser", currentUser);
+            response.sendRedirect(request.getContextPath() + "/profile?msg=updated");
+        } else {
+            response.sendRedirect(request.getContextPath() + "/profile?msg=error");
         }
     }
 }

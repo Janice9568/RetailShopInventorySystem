@@ -2,167 +2,129 @@ package com.retail.model.dao;
 
 import com.retail.model.bean.User;
 import com.retail.util.DBConnection;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class UserDAO {
 
     /**
-     * 1. 登录核心验证方法（带phone列安全兼容保护）
+     * FR1.1: Authenticate user during login.
      */
     public User authenticate(String username, String password) {
         User user = null;
         String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
-
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-
             ps.setString(1, username);
             ps.setString(2, password);
-
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     user = new User();
                     user.setUserId(rs.getInt("user_id"));
                     user.setUsername(rs.getString("username"));
-                    user.setRole(rs.getString("role"));
                     user.setFullName(rs.getString("full_name"));
-
-                    try {
-                        user.setPhone(rs.getString("phone"));
-                    } catch (SQLException e) {
-                        user.setPhone("N/A"); // 数据库没phone列时兜底
-                    }
+                    user.setRole(rs.getString("role"));
+                    user.setPhone(rs.getString("phone"));
+                    user.setEmail(rs.getString("email"));
                 }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        } catch (SQLException e) { e.printStackTrace(); }
         return user;
     }
 
     /**
-     * 2. 更新个人资料
-     */
-    public boolean updateProfile(User user) {
-        String sql = "UPDATE users SET full_name = ?, username = ? WHERE user_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, user.getFullName());
-            ps.setString(2, user.getUsername());
-            ps.setInt(3, user.getUserId());
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * 3. 获取全量用户列表
-     */
-    public List<User> getAllUsers() {
-        List<User> list = new ArrayList<>();
-        String sql = "SELECT * FROM users ORDER BY user_id DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                User user = new User();
-                user.setUserId(rs.getInt("user_id"));
-                user.setUsername(rs.getString("username"));
-                user.setRole(rs.getString("role"));
-                user.setFullName(rs.getString("full_name"));
-                list.add(user);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return list;
-    }
-
-    /**
-     * 💡 4. 补齐修复 UserServlet 错误：获取全部员工记录 (getAllStaff)
+     * For Owner: Retrieve all staff members.
      */
     public List<User> getAllStaff() {
         List<User> list = new ArrayList<>();
-        // 筛选角色不为管理员的普通员工或所有员工（根据你系统本身的定位，通常是全表输出或 role!='ADMIN'）
-        String sql = "SELECT * FROM users ORDER BY user_id DESC";
+        String sql = "SELECT user_id, username, full_name, role, phone, email FROM users WHERE role != 'OWNER' ORDER BY user_id DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                User user = new User();
-                user.setUserId(rs.getInt("user_id"));
-                user.setUsername(rs.getString("username"));
-                user.setRole(rs.getString("role"));
-                user.setFullName(rs.getString("full_name"));
-                list.add(user);
+                User u = new User();
+                u.setUserId(rs.getInt("user_id"));
+                u.setUsername(rs.getString("username"));
+                u.setFullName(rs.getString("full_name"));
+                u.setRole(rs.getString("role"));
+                u.setPhone(rs.getString("phone"));
+                u.setEmail(rs.getString("email"));
+                list.add(u);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        } catch (SQLException e) { e.printStackTrace(); }
         return list;
     }
 
     /**
-     * 5. 根据 ID 获取单个用户
+     * For Owner: Register a new staff member.
      */
-    public User getUserById(int userId) {
-        User user = null;
-        String sql = "SELECT * FROM users WHERE user_id = ?";
+    public boolean registerUser(User u) {
+        String sql = "INSERT INTO users (username, password, full_name, role, phone, email) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    user = new User();
-                    user.setUserId(rs.getInt("user_id"));
-                    user.setUsername(rs.getString("username"));
-                    user.setRole(rs.getString("role"));
-                    user.setFullName(rs.getString("full_name"));
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return user;
+            ps.setString(1, u.getUsername());
+            ps.setString(2, u.getPassword());
+            ps.setString(3, u.getFullName());
+            ps.setString(4, u.getRole());
+            ps.setString(5, u.getPhone());
+            ps.setString(6, u.getEmail());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
     /**
-     * 6. 注册/新增新用户
+     * For Owner: Update specific staff contact info.
      */
-    public boolean registerUser(User user) {
-        String sql = "INSERT INTO users (username, password, role, full_name) VALUES (?, ?, ?, ?)";
+    public boolean updateStaffContact(int userId, String phone, String email) {
+        String sql = "UPDATE users SET phone = ?, email = ? WHERE user_id = ? AND role != 'OWNER'";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, user.getUsername());
-            ps.setString(2, user.getPassword());
-            ps.setString(3, user.getRole());
-            ps.setString(4, user.getFullName());
+            ps.setString(1, phone);
+            ps.setString(2, email);
+            ps.setInt(3, userId);
             return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
+        } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
     /**
-     * 💡 7. 补齐修复 UserServlet 错误：根据 ID 删除用户 (deleteUser)
+     * For Any User: Update their own profile details.
      */
-    public boolean deleteUser(int userId) {
-        String sql = "DELETE FROM users WHERE user_id = ?";
+    public boolean updateProfile(User u) {
+        String sql = "UPDATE users SET full_name = ?, phone = ?, email = ? WHERE user_id = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
+            ps.setString(1, u.getFullName());
+            ps.setString(2, u.getPhone());
+            ps.setString(3, u.getEmail());
+            ps.setInt(4, u.getUserId());
             return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
+        } catch (SQLException e) { e.printStackTrace(); return false; }
+    }
+
+    /**
+     * For Forgot Password feature.
+     */
+    public boolean resetPassword(String username, String email, String newPassword) {
+        String sql = "UPDATE users SET password = ? WHERE username = ? AND email = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newPassword);
+            ps.setString(2, username);
+            ps.setString(3, email);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { e.printStackTrace(); return false; }
+    }
+
+    /**
+     * For Owner: Delete a staff member.
+     */
+    public boolean deleteUser(int id) {
+        String sql = "DELETE FROM users WHERE user_id = ? AND role != 'OWNER'";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 }
