@@ -5,14 +5,14 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 /**
- * DBConnection utility class to handle MySQL database connectivity.
+ * DBConnection utility class to handle Aiven Cloud MySQL database connectivity.
  */
 public class DBConnection {
 
-    // Database configuration - Update these details based on your MySQL setup
-    private static final String URL = "jdbc:mysql://localhost:3306/retail_shop_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
-    private static final String USER = "root";
-    private static final String PASSWORD = "admin"; // Change to your MySQL password
+    // Database configuration - Updated for your Aiven Cloud Database
+    private static final String URL = "jdbc:mysql://mysql-363c44dd-ysy210804-8b06.i.aivencloud.com:13613/retail_shop_db?useSSL=true&trustServerCertificate=true&serverTimezone=UTC";
+    private static final String USER = "avnadmin";
+    private static final String PASSWORD = "AVNS_CR9W1SKNCynL7VElGCi"; // Put your secret Aiven password string here
     private static final String DRIVER = "com.mysql.cj.jdbc.Driver";
 
     private static Connection connection = null;
