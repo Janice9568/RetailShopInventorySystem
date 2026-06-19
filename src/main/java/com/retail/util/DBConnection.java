@@ -1,21 +1,26 @@
 package com.retail.util;
 
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+
 
 /**
  * DBConnection utility class to handle Aiven Cloud MySQL database connectivity.
  */
 public class DBConnection {
 
+
     // Database configuration - Updated for your Aiven Cloud Database
-    private static final String URL = "jdbc:mysql://mysql-363c44dd-ysy210804-8b06.i.aivencloud.com:13613/retail_shop_db?useSSL=true&trustServerCertificate=true&serverTimezone=UTC";
-    private static final String USER = "avnadmin";
-    private static final String PASSWORD = "AVNS_CR9W1SKNCynL7VElGCi"; // Put your secret Aiven password string here
+    private static final String URL = System.getenv("DB_URL");
+    private static final String USER = System.getenv("DB_USER");
+    private static final String PASSWORD = System.getenv("DB_PASSWORD");
     private static final String DRIVER = "com.mysql.cj.jdbc.Driver";
 
+
     private static Connection connection = null;
+
 
     /**
      * Returns a connection to the MySQL database.
@@ -25,6 +30,7 @@ public class DBConnection {
         try {
             // Load the MySQL JDBC Driver
             Class.forName(DRIVER);
+
 
             // Establish the connection
             connection = DriverManager.getConnection(URL, USER, PASSWORD);
@@ -38,6 +44,7 @@ public class DBConnection {
         }
         return connection;
     }
+
 
     /**
      * Closes the provided database connection.
