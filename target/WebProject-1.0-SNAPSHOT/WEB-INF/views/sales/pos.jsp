@@ -77,11 +77,10 @@
                                 <option value="E-WALLET">E-Wallet</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
+                       <div class="col-md-6 mb-3">
                             <label class="form-label">Payment Status*</label>
                             <select name="paymentStatus" class="form-select" required>
-                                <option value="PAID">Paid</option>
-                                <option value="UNPAID">Unpaid</option>
+                                <option value="PAID">paid</option>
                             </select>
                         </div>
                     </div>

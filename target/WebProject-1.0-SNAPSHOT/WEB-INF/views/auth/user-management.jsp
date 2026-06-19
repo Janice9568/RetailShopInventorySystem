@@ -3,42 +3,47 @@
 
 <main class="container mt-4">
     <div class="row">
-        <!-- Register Sidebar -->
+        <!-- Register Form -->
         <div class="col-md-4">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white py-3"><h5 class="mb-0">Register Staff</h5></div>
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0">Add New Staff</h5>
+                </div>
                 <div class="card-body">
-                    <form action="users" method="post">
-                        <div class="mb-2"><label class="small fw-bold">Real Name</label><input type="text" name="fullName" class="form-control" required></div>
-                        <div class="mb-2"><label class="small fw-bold">Phone</label><input type="text" name="phone" class="form-control"></div>
-                        <div class="mb-2"><label class="small fw-bold">Email</label><input type="email" name="email" class="form-control"></div>
+                    <form action="${pageContext.request.contextPath}/users" method="post">
+                        <input type="hidden" name="formAction" value="register">
+                        <div class="mb-2"><label class="fw-bold small">Real Name</label><input type="text" name="fullName" class="form-control" required></div>
+                        <div class="mb-2"><label class="fw-bold small">Phone</label><input type="text" name="phone" class="form-control"></div>
+                        <div class="mb-2"><label class="fw-bold small">Email</label><input type="email" name="email" class="form-control"></div>
                         <hr>
-                        <div class="mb-2"><label class="small fw-bold">Username</label><input type="text" name="username" class="form-control" required></div>
-                        <div class="mb-2"><label class="small fw-bold">Password</label><input type="password" name="password" class="form-control" required></div>
+                        <div class="mb-2"><label class="fw-bold small">Username</label><input type="text" name="username" class="form-control" required></div>
+                        <div class="mb-2"><label class="fw-bold small">Password</label><input type="password" name="password" class="form-control" required></div>
                         <div class="mb-3">
-                            <label class="small fw-bold">Role</label>
+                            <label class="fw-bold small">Role</label>
                             <select name="role" class="form-select">
-                                <option value="CASHIER">Cashier Staff</option>
-                                <option value="INVENTORY_STAFF">Inventory Staff</option>
+                                <option value="CASHIER">CASHIER</option>
+                                <option value="INVENTORY_STAFF">INVENTORY_STAFF</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Create Account</button>
+                        <button type="submit" class="btn btn-primary w-100">Register Staff</button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Directory -->
+        <!-- Directory Table -->
         <div class="col-md-8">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold">Staff Directory</h5></div>
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">User Directory</h5>
+                </div>
                 <div class="card-body p-0">
-                    <table class="table table-hover mb-0 align-middle">
+                    <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th class="ps-3">Name / Role</th>
-                            <th>Contact Info</th>
-                            <th class="text-center">Actions</th>
+                            <th class="ps-3">Identity</th>
+                            <th>Contact Information</th>
+                            <th class="text-center">Action</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -46,18 +51,25 @@
                             <tr>
                                 <td class="ps-3">
                                     <div class="fw-bold">${u.fullName}</div>
-                                    <span class="badge bg-secondary x-small">${u.role}</span>
+                                    <span class="badge ${u.role == 'OWNER' ? 'bg-dark' : 'bg-secondary'}">${u.role}</span>
+                                    <div class="small text-muted">@${u.username}</div>
                                 </td>
                                 <td>
-                                    <div class="small"><i class="bi bi-telephone text-muted"></i> ${u.phone}</div>
-                                    <div class="small"><i class="bi bi-envelope text-muted"></i> ${u.email}</div>
+                                    <div class="small"><i class="bi bi-telephone"></i> ${not empty u.phone ? u.phone : '-'}</div>
+                                    <div class="small"><i class="bi bi-envelope"></i> ${not empty u.email ? u.email : '-'}</div>
                                 </td>
                                 <td class="text-center">
+                                        <%-- Everyone can be edited --%>
                                     <button class="btn btn-sm btn-outline-info"
                                             onclick="openEditModal('${u.userId}', '${u.fullName}', '${u.role}', '${u.phone}', '${u.email}')">
                                         Edit
                                     </button>
-                                    <a href="users?action=delete&id=${u.userId}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete user?')">Remove</a>
+                                        <%-- ONLY Staff can be deleted. Owner delete button is hidden --%>
+                                    <c:if test="${u.role != 'OWNER'}">
+                                        <a href="users?action=delete&id=${u.userId}"
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('Delete this user?')">Delete</a>
+                                    </c:if>
                                 </td>
                             </tr>
                         </c:forEach>
@@ -69,26 +81,17 @@
     </div>
 </main>
 
-<!-- Edit Staff Modal -->
-<div class="modal fade" id="editStaffModal" tabindex="-1">
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog">
-        <form action="users" method="post" class="modal-content">
-            <input type="hidden" name="action" value="update">
-            <input type="hidden" name="userId" id="editId">
-            <div class="modal-header bg-light"><h5 class="modal-title">Edit Staff Contact</h5></div>
+        <form action="${pageContext.request.contextPath}/users" method="post" class="modal-content">
+            <input type="hidden" name="formAction" value="update">
+            <input type="hidden" name="userId" id="editUserId">
+            <div class="modal-header"><h5 class="modal-title">Update Contact</h5></div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label text-muted small">Real Name & Role (Fixed)</label>
-                    <input type="text" id="editDisplayName" class="form-control bg-light" readonly>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Phone Number</label>
-                    <input type="text" name="phone" id="editPhone" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Email Address</label>
-                    <input type="email" name="email" id="editEmail" class="form-control" required>
-                </div>
+                <p class="small text-muted">Editing: <strong id="editName"></strong></p>
+                <div class="mb-3"><label class="form-label">Phone</label><input type="text" name="phone" id="editPhone" class="form-control"></div>
+                <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" id="editEmail" class="form-control"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -99,13 +102,12 @@
 </div>
 
 <script>
-    const editModal = new bootstrap.Modal(document.getElementById('editStaffModal'));
     function openEditModal(id, name, role, phone, email) {
-        document.getElementById('editId').value = id;
-        document.getElementById('editDisplayName').value = name + " (" + role + ")";
-        document.getElementById('editPhone').value = phone;
-        document.getElementById('editEmail').value = email;
-        editModal.show();
+        document.getElementById('editUserId').value = id;
+        document.getElementById('editName').innerText = name + " (" + role + ")";
+        document.getElementById('editPhone').value = (phone === '-' ? '' : phone);
+        document.getElementById('editEmail').value = (email === '-' ? '' : email);
+        new bootstrap.Modal(document.getElementById('editModal')).show();
     }
 </script>
 <jsp:include page="../common/footer.jsp" />

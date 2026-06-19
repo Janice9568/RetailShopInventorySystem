@@ -57,7 +57,7 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="${pageContext.request.contextPath}/reports?action=salesSummary">Sales Reports</a></li>
                             <li><a class="dropdown-item" href="${pageContext.request.contextPath}/reports?action=performance">Performance</a></li>
-                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/categories"><i class="bi bi-tags"></i> Manage Categories</a></li>
+                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/categories">Categories</a></li>
                             <li><a class="dropdown-item" href="${pageContext.request.contextPath}/suppliers">Suppliers</a></li>
                             <li><a class="dropdown-item" href="${pageContext.request.contextPath}/users">Staff Management</a></li>
                         </ul>

@@ -15,7 +15,7 @@
         <div class="card text-white bg-primary shadow">
             <div class="card-body">
                 <h6 class="card-title text-uppercase small">Today's Revenue</h6>
-                <h2 class="display-6 fw-bold"><fmt:formatNumber value="${todaySales}" type="currency" /></h2>
+                <h2 class="display-6 fw-bold"><fmt:formatNumber value="${todaySales}" type="currency" currencySymbol="RM" /></h2>
                 <i class="bi bi-cash-stack position-absolute top-0 end-0 m-3 opacity-50 fs-1"></i>
             </div>
         </div>

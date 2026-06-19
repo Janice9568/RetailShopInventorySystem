@@ -15,11 +15,16 @@ public class UserServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         String action = request.getParameter("action");
+
         if ("delete".equals(action)) {
-            userDAO.deleteUser(Integer.parseInt(request.getParameter("id")));
-            response.sendRedirect("users?msg=deleted");
+            int id = Integer.parseInt(request.getParameter("id"));
+            userDAO.deleteUser(id);
+            // Redirect to the URL so the list refreshes
+            response.sendRedirect(request.getContextPath() + "/users?msg=deleted");
             return;
         }
+
+        // Fetch fresh data from DB every time page is viewed
         request.setAttribute("staffList", userDAO.getAllStaff());
         request.getRequestDispatcher("WEB-INF/views/auth/user-management.jsp").forward(request, response);
     }
@@ -28,17 +33,14 @@ public class UserServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
-        String action = request.getParameter("action");
+        String action = request.getParameter("formAction");
 
         if ("update".equals(action)) {
-            // Edit existing staff contact info
             int id = Integer.parseInt(request.getParameter("userId"));
             String phone = request.getParameter("phone");
             String email = request.getParameter("email");
             userDAO.updateStaffContact(id, phone, email);
-            response.sendRedirect("users?msg=updated");
         } else {
-            // Register new staff
             User u = new User();
             u.setFullName(request.getParameter("fullName"));
             u.setUsername(request.getParameter("username"));
@@ -47,7 +49,9 @@ public class UserServlet extends HttpServlet {
             u.setPhone(request.getParameter("phone"));
             u.setEmail(request.getParameter("email"));
             userDAO.registerUser(u);
-            response.sendRedirect("users?msg=registered");
         }
+
+        // Use redirect to clear the POST data and refresh the GET view
+        response.sendRedirect(request.getContextPath() + "/users?msg=success");
     }
 }

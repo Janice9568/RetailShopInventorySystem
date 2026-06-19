@@ -8,9 +8,6 @@ import java.util.List;
 
 public class UserDAO {
 
-    /**
-     * FR1.1: Authenticate user during login.
-     */
     public User authenticate(String username, String password) {
         User user = null;
         String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
@@ -34,11 +31,11 @@ public class UserDAO {
     }
 
     /**
-     * For Owner: Retrieve all staff members.
+     * UPDATED: Fetches EVERYONE including the Owner so the table is complete.
      */
     public List<User> getAllStaff() {
         List<User> list = new ArrayList<>();
-        String sql = "SELECT user_id, username, full_name, role, phone, email FROM users WHERE role != 'OWNER' ORDER BY user_id DESC";
+        String sql = "SELECT user_id, username, full_name, role, phone, email FROM users ORDER BY user_id ASC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -48,17 +45,14 @@ public class UserDAO {
                 u.setUsername(rs.getString("username"));
                 u.setFullName(rs.getString("full_name"));
                 u.setRole(rs.getString("role"));
-                u.setPhone(rs.getString("phone"));
-                u.setEmail(rs.getString("email"));
+                u.setPhone(rs.getString("phone")); // Correctly mapping Phone
+                u.setEmail(rs.getString("email")); // Correctly mapping Email
                 list.add(u);
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return list;
     }
 
-    /**
-     * For Owner: Register a new staff member.
-     */
     public boolean registerUser(User u) {
         String sql = "INSERT INTO users (username, password, full_name, role, phone, email) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
@@ -73,11 +67,8 @@ public class UserDAO {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    /**
-     * For Owner: Update specific staff contact info.
-     */
     public boolean updateStaffContact(int userId, String phone, String email) {
-        String sql = "UPDATE users SET phone = ?, email = ? WHERE user_id = ? AND role != 'OWNER'";
+        String sql = "UPDATE users SET phone = ?, email = ? WHERE user_id = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, phone);
@@ -87,9 +78,6 @@ public class UserDAO {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    /**
-     * For Any User: Update their own profile details.
-     */
     public boolean updateProfile(User u) {
         String sql = "UPDATE users SET full_name = ?, phone = ?, email = ? WHERE user_id = ?";
         try (Connection conn = DBConnection.getConnection();
@@ -102,9 +90,6 @@ public class UserDAO {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    /**
-     * For Forgot Password feature.
-     */
     public boolean resetPassword(String username, String email, String newPassword) {
         String sql = "UPDATE users SET password = ? WHERE username = ? AND email = ?";
         try (Connection conn = DBConnection.getConnection();
@@ -116,10 +101,8 @@ public class UserDAO {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    /**
-     * For Owner: Delete a staff member.
-     */
     public boolean deleteUser(int id) {
+        // Prevention: Cannot delete Owner in the DAO level
         String sql = "DELETE FROM users WHERE user_id = ? AND role != 'OWNER'";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
