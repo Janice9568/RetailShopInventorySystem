@@ -10,6 +10,8 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -31,18 +33,21 @@ public class ReportServlet extends HttpServlet {
         String startDate = request.getParameter("startDate");
         String endDate = request.getParameter("endDate");
 
-        // 💡 1. 兜底防护：如果前端没传日期，默认卡死在今天 (2026-06-18)
+        // Dynamically grab today's real system date string (e.g., "2026-06-19")
+        String todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        // 💡 1. 动态兜底防护：如果前端没传日期，默认使用当下真实的今天
         if (startDate == null || startDate.trim().isEmpty() || endDate == null || endDate.trim().isEmpty()) {
-            startDate = "2026-06-18";
-            endDate = "2026-06-18";
+            startDate = todayStr;
+            endDate = todayStr;
         }
 
-        // 💡 2. 强力阻断：如果前端发来了 Today 专属指令标记 (isTodayScope == true)
-        // 强制把作用域抹杀到只有今天单日！
+        // 💡 2. 动态指令标记：如果前端发来了 Today 专属标记 (isTodayScope == true)
+        // 强制把作用域跳转到系统当前真实的日期，不再写死！
         String isTodayScope = request.getParameter("isTodayScope");
         if ("true".equals(isTodayScope)) {
-            startDate = "2026-06-18";
-            endDate = "2026-06-18";
+            startDate = todayStr;
+            endDate = todayStr;
         }
 
         request.setAttribute("selectedStartDate", startDate);

@@ -21,7 +21,7 @@
             </button>
         </div>
         <div class="card-body p-4">
-            <form action="reports" method="get" id="mainDashboardForm" target="_blank">
+            <form action="reports" method="get" id="mainDashboardForm">
                 <input type="hidden" name="action" id="formAction" value="printReport">
                 <input type="hidden" name="isTodayScope" id="isTodayScope" value="false">
 
@@ -35,7 +35,7 @@
                         <input type="date" id="filterEndDate" name="endDate" value="${selectedEndDate}" class="form-control form-control-lg" required>
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" onclick="handleFormClick()">
+                        <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm">
                             Generate Report
                         </button>
                     </div>
@@ -198,26 +198,41 @@
 </div>
 
 <script>
-    // 当点击 Generate Report 时：让主窗口平滑更新大看板，完全不对齐 action 尾巴，杜绝 404
-    function handleFormClick() {
-        const startDate = document.getElementById('filterStartDate').value;
-        const endDate = document.getElementById('filterEndDate').value;
-        const isToday = document.getElementById('isTodayScope').value;
-
-        setTimeout(() => {
-            window.location.href = `reports?startDate=${startDate}&endDate=${endDate}&isTodayScope=${isToday}`;
-        }, 400);
+    // Helper function to extract the real system today's date in YYYY-MM-DD
+    function getTodayDateString() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        return ${yyyy}-${mm}-${dd};
     }
 
-    // Today 捷径按钮：强行将标志位调整，引爆单天数据过滤
+    // Auto-fill dates with today's date on initial page access if backend hasn't provided defaults
+    document.addEventListener("DOMContentLoaded", function() {
+        const startDateInput = document.getElementById('filterStartDate');
+        const endDateInput = document.getElementById('filterEndDate');
+
+        if (!startDateInput.value) {
+            startDateInput.value = getTodayDateString();
+        }
+        if (!endDateInput.value) {
+            endDateInput.value = getTodayDateString();
+        }
+    });
+
+    // Today shortcut button execution logic
     function selectTodayAndSubmitAll() {
-        document.getElementById('filterStartDate').value = "2026-06-18";
-        document.getElementById('filterEndDate').value = "2026-06-18";
+        const todayString = getTodayDateString();
+
+        // 1. Force screen inputs to show the real current date string
+        document.getElementById('filterStartDate').value = todayString;
+        document.getElementById('filterEndDate').value = todayString;
+
+        // 2. Adjust parameter settings for backend
         document.getElementById('isTodayScope').value = "true";
-
         document.getElementById('formAction').value = "printReport";
-        handleFormClick();
 
+        // 3. Dispatch form cleanly without competing window redirect scripts
         const form = document.getElementById('mainDashboardForm');
         if(form) {
             form.submit();

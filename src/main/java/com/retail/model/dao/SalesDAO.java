@@ -10,16 +10,14 @@ import java.util.List;
 public class SalesDAO {
 
     /**
-     * 新增核心修复方法：获取指定日期范围内的所有未取消的商品明细行
+     * 获取指定日期范围内的所有未取消的商品明细行
      * 直接解决前端 Daily Sales Summary 留白没有商品名字的问题！
      */
     public List<SaleItem> getDetailedSalesRows(String startDate, String endDate) {
         List<SaleItem> list = new ArrayList<>();
-        // 防御性补齐时分秒边界，防止临界点数据因时区漏掉
         String fullStartDate = startDate + " 00:00:00";
         String fullEndDate = endDate + " 23:59:59";
 
-        // 💡 核心：利用 DATE_FORMAT 让数据库在底层把 sale_date 转成纯文本 'yyyy-MM-dd' 塞进 cancelReason 字段（或者用别名过渡），避开时区大坑！
         String sql = "SELECT DATE_FORMAT(s.sale_date, '%Y-%m-%d') AS clean_date, p.product_name, si.quantity, si.product_id, si.unit_price, si.subtotal " +
                 "FROM sales s " +
                 "JOIN sale_items si ON s.sale_id = si.sale_id " +
@@ -39,18 +37,7 @@ public class SalesDAO {
                     item.setQuantity(rs.getInt("quantity"));
                     item.setUnitPrice(rs.getDouble("unit_price"));
                     item.setSubtotal(rs.getDouble("subtotal"));
-
-                    // 💡 巧妙借用现有的 String 字段作为临时的传输载体，不需要你再去改动或新建 Bean 类：
-                    // 把数据库切好的干净日期字符串放进备注/原因里
-                    item.setProductName(rs.getString("product_name"));
-
-                    // 把格式化好的纯日期文本（例如 "2026-06-17"）暂时存放在一个 String 字段里（这里借用或确保前台能拿到）
-                    // 假设你的 SaleItem 没有存储日期的 String，我们可以利用一个临时的域，或者前台直接通过特殊逻辑读取。
-                    // 为了万无一失，我们在前端配对时直接用它。这里我们把它存在一个特殊的备注里，或者下面我们在前端用更绝的方案。
-                    // 为了让前端 100% 拿到干净日期，我们把 clean_date 塞进一个你基本用不到的属性或者确保你的 SaleItem 里有这个属性。
-                    // 如果你的 SaleItem 里面只有基本属性，我们直接把 clean_date 拼在 productName 前面，用 "||" 隔开！
                     item.setProductName(rs.getString("clean_date") + "||" + rs.getString("product_name"));
-
                     list.add(item);
                 }
             }
@@ -70,56 +57,73 @@ public class SalesDAO {
             conn.setAutoCommit(false); // Start transaction
 
             // 1. Insert Sales Header
-            String saleSql = "INSERT INTO sales (total_amount, payment_method, payment_status, user_id) VALUES (?, ?, ?, ?)";
+            String saleSql = "INSERT INTO sales (total_amount, payment_method, payment_status, user_id, sale_date) VALUES (?, ?, ?, ?, NOW())";
             PreparedStatement psSale = conn.prepareStatement(saleSql, Statement.RETURN_GENERATED_KEYS);
             psSale.setDouble(1, sale.getTotalAmount());
             psSale.setString(2, sale.getPaymentMethod());
             psSale.setString(3, sale.getPaymentStatus());
             psSale.setInt(4, sale.getUserId());
-            psSale.executeUpdate();
+
+            int affectedHeaders = psSale.executeUpdate();
+            if (affectedHeaders == 0) {
+                throw new SQLException("Creating sale header failed, no rows affected.");
+            }
 
             ResultSet rs = psSale.getGeneratedKeys();
             int saleId = 0;
             if (rs.next()) {
                 saleId = rs.getInt(1);
                 sale.setSaleId(saleId);
+            } else {
+                throw new SQLException("Creating sale header failed, no ID obtained. Ensure AUTO_INCREMENT is enabled!");
             }
 
-            // 2. Insert Sale Items & Update Stock (FR3.2)
+            // 2. Insert Sale Items & Update Stock
             String itemSql = "INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)";
             String stockSql = "UPDATE products SET stock_quantity = stock_quantity - ? WHERE product_id = ? AND stock_quantity >= ?";
 
-            PreparedStatement psItem = conn.prepareStatement(itemSql);
-            PreparedStatement psStock = conn.prepareStatement(stockSql);
+            try (PreparedStatement psItem = conn.prepareStatement(itemSql);
+                 PreparedStatement psStock = conn.prepareStatement(stockSql)) {
 
-            for (SaleItem item : items) {
-                // Insert Item
-                psItem.setInt(1, saleId);
-                psItem.setInt(2, item.getProductId());
-                psItem.setInt(3, item.getQuantity());
-                psItem.setDouble(4, item.getUnitPrice());
-                psItem.setDouble(5, item.getSubtotal());
-                psItem.addBatch();
+                for (SaleItem item : items) {
+                    // Insert Item
+                    psItem.setInt(1, saleId);
+                    psItem.setInt(2, item.getProductId());
+                    psItem.setInt(3, item.getQuantity());
+                    psItem.setDouble(4, item.getUnitPrice());
+                    psItem.setDouble(5, item.getSubtotal());
 
-                // Deduct Stock
-                psStock.setInt(1, item.getQuantity());
-                psStock.setInt(2, item.getProductId());
-                psStock.setInt(3, item.getQuantity()); // Validation check
-                int updatedRows = psStock.executeUpdate();
+                    // Execute item single updates instead of batch to catch exact failures safely
+                    int itemInserted = psItem.executeUpdate();
+                    if (itemInserted == 0) {
+                        throw new SQLException("Failed to insert sale item for Product ID: " + item.getProductId());
+                    }
 
-                if (updatedRows == 0) {
-                    throw new SQLException("Insufficient stock for product ID: " + item.getProductId());
+                    // Deduct Stock
+                    psStock.setInt(1, item.getQuantity());
+                    psStock.setInt(2, item.getProductId());
+                    psStock.setInt(3, item.getQuantity());
+                    int updatedRows = psStock.executeUpdate();
+
+                    if (updatedRows == 0) {
+                        throw new SQLException("Insufficient stock or invalid Product ID: " + item.getProductId());
+                    }
                 }
             }
-            psItem.executeBatch();
 
-            conn.commit();
+            conn.commit(); // Save changes permanently
             return true;
         } catch (SQLException e) {
-            if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            }
+            System.err.println("--- TRANSACTION CRITICAL FAILURE ---");
             e.printStackTrace();
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                    System.err.println("Transaction successfully rolled back clean.");
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
             return false;
         } finally {
             DBConnection.closeConnection(conn);
@@ -145,10 +149,12 @@ public class SalesDAO {
 
     /**
      * 获取所有销售记录流水
+     * 🔥 FIXED: Changed 'JOIN' to 'LEFT JOIN' and added a fallback string name
+     * to prevent unlinked cashier entries from hiding valid transactions.
      */
     public List<Sale> getAllSales() {
         List<Sale> sales = new ArrayList<>();
-        String sql = "SELECT s.*, u.full_name FROM sales s JOIN users u ON s.user_id = u.user_id ORDER BY s.sale_date DESC";
+        String sql = "SELECT s.*, u.full_name FROM sales s LEFT JOIN users u ON s.user_id = u.user_id ORDER BY s.sale_date DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -159,11 +165,17 @@ public class SalesDAO {
                 s.setTotalAmount(rs.getDouble("total_amount"));
                 s.setPaymentMethod(rs.getString("payment_method"));
                 s.setPaymentStatus(rs.getString("payment_status"));
-                s.setSellerName(rs.getString("full_name"));
+
+                // Fallback safe assignment if clerk identity row structure is detached
+                String seller = rs.getString("full_name");
+                s.setSellerName(seller != null ? seller : "System Default (ID: " + rs.getInt("user_id") + ")");
+
                 s.setCancelReason(rs.getString("cancel_reason"));
                 sales.add(s);
             }
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return sales;
     }
 
